@@ -1,0 +1,1 @@
+- [Gemini model availability](gemini-model-availability.md) — new API keys may reject legacy flash models; verify the current supported model with a real structured request.

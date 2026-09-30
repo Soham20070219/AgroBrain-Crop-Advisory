@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "AgroBrain Crop Advisory"
+description = "A full-stack crop advisory workspace for farmers to manage farm profiles, generate structured agronomic recommendations, and review printable reports powered by AI."
+version = "1.0.0"
+id = "artifacts/agrobrain"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24365
+
+[services.development]
+run = "pnpm --filter @workspace/agrobrain run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/agrobrain", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/agrobrain/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24365"
+BASE_PATH = "/"

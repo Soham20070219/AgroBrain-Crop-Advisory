@@ -3,13 +3,21 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: AgroBrain crop advisory API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: users
+    description: MVP user session operations
+  - name: farms
+    description: Farm profile operations
+  - name: advisories
+    description: AI-generated agronomic advisory operations
+  - name: dashboard
+    description: Dashboard summaries
 paths:
   /healthz:
     get:
@@ -24,7 +32,206 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /users:
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create or retrieve an MVP user session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+      responses:
+        "201":
+          description: User session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /farms:
+    get:
+      operationId: listFarms
+      tags: [farms]
+      summary: List farms owned by the current user
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Farm list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Farm"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createFarm
+      tags: [farms]
+      summary: Create a farm profile
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FarmInput"
+      responses:
+        "201":
+          description: Created farm
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Farm"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /farms/{id}:
+    get:
+      operationId: getFarm
+      tags: [farms]
+      summary: Get one owned farm profile
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Farm profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Farm"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /advisories:
+    get:
+      operationId: listAdvisories
+      tags: [advisories]
+      summary: List past advisories for the current user
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Advisory history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdvisorySummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /advisories/generate:
+    post:
+      operationId: generateAdvisory
+      tags: [advisories]
+      summary: Generate and save a new AI advisory
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdvisoryInput"
+      responses:
+        "201":
+          description: Generated advisory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Advisory"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "502":
+          description: AI provider failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /advisories/{id}:
+    get:
+      operationId: getAdvisory
+      tags: [advisories]
+      summary: Get one owned advisory
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Detailed advisory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Advisory"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard counts and recent activity
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 components:
+  parameters:
+    UserId:
+      name: x-user-id
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Missing or invalid user session
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +240,203 @@ components:
           type: string
       required:
         - status
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    UserInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required: [email]
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, email, createdAt]
+    FarmInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 255
+        region:
+          type: string
+          minLength: 2
+          maxLength: 255
+        areaAcres:
+          type: number
+          exclusiveMinimum: 0
+        soilType:
+          type: string
+          enum: [Loamy, Clay, Sandy, Peaty, Saline, Chalky]
+        irrigationMethod:
+          type: string
+          enum: [Rainfed, Drip, Sprinkler, Flood]
+        climateZone:
+          type: string
+          enum: [Arid, Semi-arid, Tropical, Sub-tropical, Temperate]
+        historicCrop:
+          type: string
+          minLength: 2
+          maxLength: 255
+      required: [name, region, areaAcres, soilType, irrigationMethod, climateZone, historicCrop]
+    Farm:
+      allOf:
+        - $ref: "#/components/schemas/FarmInput"
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            userId:
+              type: string
+              format: uuid
+            createdAt:
+              type: string
+              format: date-time
+          required: [id, userId, createdAt]
+    AdvisoryInput:
+      type: object
+      properties:
+        farmId:
+          type: string
+          format: uuid
+        targetSeason:
+          type: string
+          enum: [Kharif, Rabi, Zaid, Spring, Summer, Winter]
+        budgetLevel:
+          type: string
+          enum: [Low, Medium, High]
+        specificConcerns:
+          type: string
+          maxLength: 2000
+      required: [farmId, targetSeason, budgetLevel, specificConcerns]
+    AdvisorySummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        farmId:
+          type: string
+          format: uuid
+        farmName:
+          type: string
+        targetSeason:
+          type: string
+        budgetLevel:
+          type: string
+        topCrop:
+          type: string
+        topScore:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, farmId, farmName, targetSeason, budgetLevel, topCrop, topScore, createdAt]
+    CropRecommendation:
+      type: object
+      properties:
+        cropName:
+          type: string
+        suitabilityScore:
+          type: number
+          minimum: 0
+          maximum: 100
+        reasoning:
+          type: string
+        expectedYieldPerAcre:
+          type: string
+        estimatedRoiPercentage:
+          type: number
+      required: [cropName, suitabilityScore, reasoning, expectedYieldPerAcre, estimatedRoiPercentage]
+    PestThreat:
+      type: object
+      properties:
+        threatName:
+          type: string
+        preventionStrategy:
+          type: string
+        treatment:
+          type: string
+      required: [threatName, preventionStrategy, treatment]
+    AdvisoryReport:
+      type: object
+      properties:
+        recommendedCrops:
+          type: array
+          items:
+            $ref: "#/components/schemas/CropRecommendation"
+        soilPreparationSteps:
+          type: array
+          items:
+            type: string
+        pestDiseaseManagement:
+          type: array
+          items:
+            $ref: "#/components/schemas/PestThreat"
+        irrigationSchedule:
+          type: string
+        sustainabilityTips:
+          type: array
+          items:
+            type: string
+      required: [recommendedCrops, soilPreparationSteps, pestDiseaseManagement, irrigationSchedule, sustainabilityTips]
+    Advisory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        farmId:
+          type: string
+          format: uuid
+        farmName:
+          type: string
+        region:
+          type: string
+        targetSeason:
+          type: string
+        budgetLevel:
+          type: string
+        specificConcerns:
+          type: string
+        report:
+          $ref: "#/components/schemas/AdvisoryReport"
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, farmId, farmName, region, targetSeason, budgetLevel, specificConcerns, report, createdAt]
+    DashboardSummary:
+      type: object
+      properties:
+        farmCount:
+          type: integer
+        advisoryCount:
+          type: integer
+        averageSuitability:
+          type: number
+        latestAdvisory:
+          anyOf:
+            - $ref: "#/components/schemas/AdvisorySummary"
+            - type: "null"
+        farms:
+          type: array
+          items:
+            $ref: "#/components/schemas/Farm"
+      required: [farmCount, advisoryCount, averageSuitability, latestAdvisory, farms]
 
